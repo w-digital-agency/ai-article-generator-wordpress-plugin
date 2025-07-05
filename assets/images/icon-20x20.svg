@@ -1,0 +1,6 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simplified icon for 20x20 size -->
+  <rect width="20" height="20" rx="3" fill="#2271b1"/>
+  <path d="M6 7h8v1.5H6V7zm0 3h8v1.5H6V10zm0 3h5v1.5H6V13z" fill="white"/>
+  <circle cx="15" cy="5" r="2" fill="#00a32a"/>
+</svg>

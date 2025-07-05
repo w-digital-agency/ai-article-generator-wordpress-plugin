@@ -38,8 +38,24 @@ class AAG_Admin_Menu {
             'manage_options', 
             'article-generator', 
             array($this, 'create_admin_page'),
-            AAG_PLUGIN_URL . 'assets/images/icon.svg'
+            $this->get_menu_icon(),
+            30
         );
+    }
+
+    private function get_menu_icon() {
+        // Use the smaller 20x20 icon for the menu
+        $icon_path = AAG_PLUGIN_URL . 'assets/images/icon-20x20.svg';
+        
+        // For WordPress admin menu, we need to use a data URI or dashicon
+        // Let's create a simple data URI for the icon
+        $svg_content = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="20" height="20" rx="3" fill="currentColor"/>
+            <path d="M6 7h8v1.5H6V7zm0 3h8v1.5H6V10zm0 3h5v1.5H6V13z" fill="white"/>
+            <circle cx="15" cy="5" r="2" fill="#00a32a"/>
+        </svg>';
+        
+        return 'data:image/svg+xml;base64,' . base64_encode($svg_content);
     }
 
     public function register_settings() {

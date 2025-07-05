@@ -452,6 +452,33 @@ input[type="file"]:hover {
     color: #d63638;
 }
 
+/* WordPress admin menu icon styling */
+.wp-menu-image img {
+    width: 20px !important;
+    height: 20px !important;
+    opacity: 0.6;
+}
+
+.wp-menu-image svg {
+    width: 20px !important;
+    height: 20px !important;
+    fill: currentColor;
+}
+
+/* Ensure proper icon display in admin menu */
+#adminmenu .wp-menu-image {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#adminmenu .wp-menu-image svg {
+    max-width: 20px;
+    max-height: 20px;
+}
+
 /* Responsive improvements */
 @media screen and (max-width: 782px) {
     .aag-dashboard {
@@ -469,6 +496,12 @@ input[type="file"]:hover {
     
     .aag-api-key-input .button {
         align-self: flex-start;
+    }
+    
+    /* Mobile menu icon adjustments */
+    #adminmenu .wp-menu-image {
+        width: 20px;
+        height: 20px;
     }
 }
 
