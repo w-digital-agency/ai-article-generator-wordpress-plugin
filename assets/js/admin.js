@@ -1,140 +1,4 @@
 jQuery(document).ready(function($) {
-    // Initialize security charts
-    function initSecurityCharts() {
-        if ($('#securityEventsChart').length) {
-            const ctx = document.getElementById('securityEventsChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: window.securityChartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    // Security log filters
-    $('#security-log-filter').on('change', function() {
-        const severity = $(this).val();
-        if (severity === 'all') {
-            $('.aag-log-row').show();
-        } else {
-            $('.aag-log-row').hide();
-            $('.aag-log-row[data-severity="' + severity + '"]').show();
-        }
-    });
-
-    // API Key validation
-    $('.aag-api-key-input input').on('blur', function() {
-        const $input = $(this);
-        const $status = $input.siblings('.aag-key-status');
-        const key = $input.val().trim();
-
-        if (!key) {
-            $status.removeClass('valid invalid').html('');
-            return;
-        }
-
-        // Basic format validation
-        const isValidFormat = /^[a-zA-Z0-9_-]{20,}$/.test(key);
-        
-        if (!isValidFormat) {
-            $status.removeClass('valid').addClass('invalid')
-                .html('<span class="dashicons dashicons-warning"></span> Invalid key format');
-            return;
-        }
-
-        // Server-side validation
-        $.ajax({
-            url: aagAdmin.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'aag_validate_api_key',
-                nonce: aagAdmin.nonce,
-                key: key,
-                provider: $input.attr('name')
-            },
-            success: function(response) {
-                if (response.success) {
-                    $status.removeClass('invalid').addClass('valid')
-                        .html('<span class="dashicons dashicons-yes"></span> Valid key');
-                } else {
-                    $status.removeClass('valid').addClass('invalid')
-                        .html('<span class="dashicons dashicons-warning"></span> ' + response.data);
-                }
-            }
-        });
-    });
-
-    // Security recommendations
-    $('.aag-recommendation-action').on('click', function(e) {
-        e.preventDefault();
-        const action = $(this).data('action');
-        const $item = $(this).closest('.aag-recommendation-item');
-
-        $.ajax({
-            url: aagAdmin.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'aag_handle_security_recommendation',
-                nonce: aagAdmin.nonce,
-                recommendation: action
-            },
-            beforeSend: function() {
-                $item.addClass('processing');
-            },
-            success: function(response) {
-                if (response.success) {
-                    $item.addClass('completed');
-                    showToast(response.data, 'success');
-                } else {
-                    showToast(response.data, 'error');
-                }
-            },
-            complete: function() {
-                $item.removeClass('processing');
-            }
-        });
-    });
-
-    // Export security logs
-    $('#export-security-logs').on('click', function(e) {
-        e.preventDefault();
-        
-        $.ajax({
-            url: aagAdmin.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'aag_export_security_logs',
-                nonce: aagAdmin.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    const blob = new Blob([response.data], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'security-logs.csv';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                } else {
-                    showToast('Failed to export security logs', 'error');
-                }
-            }
-        });
-    });
-
-    // Initialize components
-    initSecurityCharts();
-
     // Tab handling
     $('.aag-tabs .nav-tab').on('click', function(e) {
         e.preventDefault();
@@ -161,48 +25,154 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Security actions
-    $('#rotate-encryption-key').on('click', function() {
-        if (!confirm('Are you sure you want to rotate the encryption key? This will require re-entering all API keys.')) {
-            return;
-        }
-
+    // Test Notion connection
+    $('#test-notion-connection').on('click', function() {
+        var $button = $(this);
+        var $status = $('.aag-key-status');
+        
+        $button.prop('disabled', true).text('Testing...');
+        
         $.ajax({
             url: aagAdmin.ajaxurl,
             type: 'POST',
             data: {
-                action: 'aag_rotate_encryption_key',
+                action: 'aag_test_notion_connection',
                 nonce: aagAdmin.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    showToast('Encryption key rotated successfully', 'success');
+                    $status.removeClass('invalid').addClass('valid')
+                        .html('<span class="dashicons dashicons-yes"></span> ' + response.data);
                 } else {
-                    showToast('Failed to rotate encryption key', 'error');
+                    $status.removeClass('valid').addClass('invalid')
+                        .html('<span class="dashicons dashicons-warning"></span> ' + response.data);
                 }
+            },
+            error: function() {
+                $status.removeClass('valid').addClass('invalid')
+                    .html('<span class="dashicons dashicons-warning"></span> Connection failed');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text('Test Connection');
             }
         });
     });
 
-    $('#clear-api-keys').on('click', function() {
-        if (!confirm('Are you sure you want to clear all API keys? This action cannot be undone.')) {
-            return;
-        }
-
+    // Get Notion databases
+    $('#get-notion-databases').on('click', function() {
+        var $button = $(this);
+        var $list = $('#notion-databases-list');
+        
+        $button.prop('disabled', true).text('Loading...');
+        
         $.ajax({
             url: aagAdmin.ajaxurl,
             type: 'POST',
             data: {
-                action: 'aag_clear_api_keys',
+                action: 'aag_get_notion_databases',
+                nonce: aagAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success && response.data.length > 0) {
+                    var html = '<h4>Available Databases:</h4><ul>';
+                    response.data.forEach(function(db) {
+                        var title = db.title && db.title[0] ? db.title[0].plain_text : 'Untitled Database';
+                        html += '<li><a href="#" class="select-database" data-id="' + db.id + '">' + title + '</a> <small>(' + db.id + ')</small></li>';
+                    });
+                    html += '</ul>';
+                    $list.html(html).show();
+                } else {
+                    $list.html('<p>No databases found or connection failed.</p>').show();
+                }
+            },
+            error: function() {
+                $list.html('<p>Failed to load databases.</p>').show();
+            },
+            complete: function() {
+                $button.prop('disabled', false).text('Browse Databases');
+            }
+        });
+    });
+
+    // Select database
+    $(document).on('click', '.select-database', function(e) {
+        e.preventDefault();
+        var databaseId = $(this).data('id');
+        $('input[name="aag_notion_database_id"]').val(databaseId);
+        $('#notion-databases-list').hide();
+        showToast('Database selected successfully', 'success');
+    });
+
+    // Sync Notion now
+    $('#sync-notion-now').on('click', function() {
+        var $button = $(this);
+        
+        $button.prop('disabled', true).text('Syncing...');
+        
+        $.ajax({
+            url: aagAdmin.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'aag_sync_notion_now',
                 nonce: aagAdmin.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    showToast('All API keys cleared successfully', 'success');
-                    // Clear all API key inputs
-                    $('input[type="password"]').val('');
+                    var message = 'Sync completed! Synced: ' + response.data.synced + ' posts';
+                    if (response.data.errors.length > 0) {
+                        message += '. Errors: ' + response.data.errors.length;
+                    }
+                    showToast(message, 'success');
                 } else {
-                    showToast('Failed to clear API keys', 'error');
+                    showToast('Sync failed: ' + response.data, 'error');
+                }
+            },
+            error: function() {
+                showToast('Sync failed due to network error', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text('Sync Now');
+            }
+        });
+    });
+
+    // API Key validation
+    $('.aag-api-key-input input').on('blur', function() {
+        var $input = $(this);
+        var $status = $input.siblings('.aag-key-status');
+        var key = $input.val().trim();
+
+        if (!key) {
+            $status.removeClass('valid invalid').html('');
+            return;
+        }
+
+        // Basic format validation
+        var isValidFormat = /^[a-zA-Z0-9_-]{20,}$/.test(key);
+        
+        if (!isValidFormat) {
+            $status.removeClass('valid').addClass('invalid')
+                .html('<span class="dashicons dashicons-warning"></span> Invalid key format');
+            return;
+        }
+
+        // Server-side validation
+        $.ajax({
+            url: aagAdmin.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'aag_validate_api_key',
+                nonce: aagAdmin.nonce,
+                key: key,
+                provider: $input.attr('name')
+            },
+            success: function(response) {
+                if (response.success) {
+                    $status.removeClass('invalid').addClass('valid')
+                        .html('<span class="dashicons dashicons-yes"></span> Valid key');
+                } else {
+                    $status.removeClass('valid').addClass('invalid')
+                        .html('<span class="dashicons dashicons-warning"></span> ' + response.data);
                 }
             }
         });
@@ -239,4 +209,10 @@ jQuery(document).ready(function($) {
             }
         }
     });
+
+    // Initialize first tab as active
+    if ($('.nav-tab-active').length === 0) {
+        $('.nav-tab').first().addClass('nav-tab-active');
+        $('.aag-tab-pane').first().addClass('active');
+    }
 });
