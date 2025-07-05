@@ -212,20 +212,21 @@ We welcome contributions! Please:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [MIT License](https://opensource.org/licenses/MIT) for details.
 
 ## 🔗 Useful Links
 
 - [OpenRouter Models](https://openrouter.ai/models) - Browse available AI models
 - [Notion API Documentation](https://developers.notion.com/) - Learn about Notion integration
 - [WordPress Block Editor](https://wordpress.org/gutenberg/) - Understanding Gutenberg blocks
-- [Plugin Support](https://github.com/your-repo/issues) - Get help and report issues
+- [W Digital Agency](https://www.wdigitalagency.com) - Professional WordPress development services
+- - [Plugin Support](mailto:info@wdigitalagency.com) - Get help and report issues
 
 ## 💝 Support the Project
 
 If you find this plugin helpful:
 
-<a href="https://www.buymeacoffee.com/wingleungblog">
+<a href="https://coff.ee/wingleungblog">
   <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=wingleungblog&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" />
 </a>
 
