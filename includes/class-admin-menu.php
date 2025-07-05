@@ -38,7 +38,7 @@ class AAG_Admin_Menu {
             'manage_options', 
             'article-generator', 
             array($this, 'create_admin_page'),
-            'dashicons-text'
+            AAG_PLUGIN_URL . 'assets/images/icon.svg'
         );
     }
 
@@ -68,7 +68,12 @@ class AAG_Admin_Menu {
     public function create_admin_page() {
         ?>
         <div class="wrap">
-            <h1>Article Generator Pro Settings</h1>
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <img src="<?php echo AAG_PLUGIN_URL . 'assets/images/icon.svg'; ?>" 
+                     alt="Auto Article Generator Pro" 
+                     style="width: 48px; height: 48px; margin-right: 15px;">
+                <h1 style="margin: 0;">Article Generator Pro Settings</h1>
+            </div>
             
             <div class="aag-tabs">
                 <nav class="nav-tab-wrapper">
