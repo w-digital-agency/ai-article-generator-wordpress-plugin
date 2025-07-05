@@ -23,7 +23,10 @@ class AAG_Security_Logger {
             user_agent varchar(255) NOT NULL,
             created_at datetime NOT NULL,
             severity varchar(20) NOT NULL,
-            PRIMARY KEY  (id)
+            PRIMARY KEY  (id),
+            KEY event_type (event_type),
+            KEY severity (severity),
+            KEY created_at (created_at)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -33,6 +36,11 @@ class AAG_Security_Logger {
     public function log_event($event_type, $description, $severity = 'info') {
         global $wpdb;
         
+        // Sanitize all inputs
+        $event_type = sanitize_text_field($event_type);
+        $description = sanitize_textarea_field($description);
+        $severity = sanitize_text_field($severity);
+        
         // Ensure table exists
         if ($wpdb->get_var("SHOW TABLES LIKE '$this->log_table'") != $this->log_table) {
             $this->init_table();
@@ -41,22 +49,52 @@ class AAG_Security_Logger {
         // Clean old logs if we exceed max_logs
         $this->cleanup_old_logs();
 
+        // Prepare data - ensure no sensitive information is logged
         $data = array(
-            'event_type' => sanitize_text_field($event_type),
-            'event_description' => sanitize_textarea_field($description),
+            'event_type' => $event_type,
+            'event_description' => $this->sanitize_log_description($description),
             'user_id' => get_current_user_id(),
             'ip_address' => $this->get_client_ip(),
-            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field($_SERVER['HTTP_USER_AGENT']) : '',
+            'user_agent' => $this->sanitize_user_agent(),
             'created_at' => current_time('mysql'),
-            'severity' => sanitize_text_field($severity)
+            'severity' => in_array($severity, ['low', 'medium', 'high', 'info']) ? $severity : 'info'
         );
 
-        $wpdb->insert($this->log_table, $data);
+        $result = $wpdb->insert($this->log_table, $data);
 
         // If it's a high severity event, notify admin
-        if ($severity === 'high') {
+        if ($severity === 'high' && $result !== false) {
             $this->notify_admin($event_type, $description);
         }
+
+        return $result !== false;
+    }
+
+    private function sanitize_log_description($description) {
+        // Remove any potential API keys or sensitive data from logs
+        $patterns = [
+            '/sk-[a-zA-Z0-9]{48}/',  // OpenAI API keys
+            '/Bearer\s+[a-zA-Z0-9_-]+/', // Bearer tokens
+            '/secret_[a-zA-Z0-9_-]+/', // Notion tokens
+            '/password["\s]*[:=]["\s]*[^"\s]+/i', // Passwords
+            '/token["\s]*[:=]["\s]*[^"\s]+/i', // Tokens
+        ];
+        
+        $replacements = [
+            'sk-***REDACTED***',
+            'Bearer ***REDACTED***',
+            'secret_***REDACTED***',
+            'password: ***REDACTED***',
+            'token: ***REDACTED***',
+        ];
+        
+        return preg_replace($patterns, $replacements, $description);
+    }
+
+    private function sanitize_user_agent() {
+        $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+        // Limit length and sanitize
+        return substr(sanitize_text_field($user_agent), 0, 255);
     }
 
     private function cleanup_old_logs() {
@@ -88,27 +126,47 @@ class AAG_Security_Logger {
     }
 
     private function get_client_ip() {
-        $ip = '';
-        if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } elseif (isset($_SERVER['REMOTE_ADDR'])) {
-            $ip = $_SERVER['REMOTE_ADDR'];
+        $ip_keys = ['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
+        
+        foreach ($ip_keys as $key) {
+            if (isset($_SERVER[$key]) && !empty($_SERVER[$key])) {
+                $ip = $_SERVER[$key];
+                // Handle comma-separated IPs (X-Forwarded-For)
+                if (strpos($ip, ',') !== false) {
+                    $ip = trim(explode(',', $ip)[0]);
+                }
+                // Validate IP address
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                    return sanitize_text_field($ip);
+                }
+            }
         }
-        return sanitize_text_field($ip);
+        
+        return 'unknown';
     }
 
     private function notify_admin($event_type, $description) {
         $admin_email = get_option('admin_email');
-        $subject = sprintf('Security Alert: %s - Article Generator Plugin', $event_type);
+        if (empty($admin_email)) {
+            return;
+        }
+
+        $subject = sprintf('[Security Alert] %s - Auto Article Generator Pro', $event_type);
         $message = sprintf(
-            "A high-severity security event has occurred:\n\nType: %s\nDescription: %s\nIP: %s\nUser: %s\nTime: %s",
+            "A high-severity security event has occurred on your WordPress site:\n\n" .
+            "Event Type: %s\n" .
+            "Description: %s\n" .
+            "IP Address: %s\n" .
+            "User: %s\n" .
+            "Time: %s\n" .
+            "Site: %s\n\n" .
+            "Please review your security logs in the WordPress admin area.",
             $event_type,
-            $description,
+            $this->sanitize_log_description($description),
             $this->get_client_ip(),
-            wp_get_current_user()->user_login,
-            current_time('mysql')
+            wp_get_current_user()->user_login ?: 'Unknown',
+            current_time('mysql'),
+            get_site_url()
         );
         
         wp_mail($admin_email, $subject, $message);
@@ -128,7 +186,7 @@ class AAG_Security_Logger {
                 "SELECT * FROM $this->log_table 
                 ORDER BY created_at DESC 
                 LIMIT %d",
-                $limit
+                absint($limit)
             )
         );
     }
@@ -165,11 +223,30 @@ class AAG_Security_Logger {
         $stats['failed_attempts'] = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT COUNT(*) FROM $this->log_table 
-                WHERE event_type = %s",
-                'failed_api_request'
+                WHERE event_type LIKE %s",
+                '%failed%'
             )
         );
         
         return $stats;
+    }
+
+    /**
+     * Clear all security logs (admin function)
+     */
+    public function clear_logs() {
+        global $wpdb;
+        
+        if (!current_user_can('manage_options')) {
+            return false;
+        }
+        
+        $result = $wpdb->query("TRUNCATE TABLE $this->log_table");
+        
+        if ($result !== false) {
+            $this->log_event('security_logs_cleared', 'All security logs cleared by admin', 'medium');
+        }
+        
+        return $result !== false;
     }
 }
