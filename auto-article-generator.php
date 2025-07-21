@@ -30,6 +30,7 @@ require_once AAG_PLUGIN_PATH . 'includes/class-encryption-handler.php';
 require_once AAG_PLUGIN_PATH . 'includes/class-security-logger.php';
 require_once AAG_PLUGIN_PATH . 'includes/class-image-handler.php';
 require_once AAG_PLUGIN_PATH . 'includes/class-notion-sync.php';
+require_once AAG_PLUGIN_PATH . 'includes/class-notion-sync-debugger.php';
 
 // Provider classes next
 require_once AAG_PLUGIN_PATH . 'includes/providers/class-openrouter-provider.php';

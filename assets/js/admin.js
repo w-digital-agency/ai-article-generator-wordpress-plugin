@@ -215,4 +215,126 @@ jQuery(document).ready(function($) {
         $('.nav-tab').first().addClass('nav-tab-active');
         $('.aag-tab-pane').first().addClass('active');
     }
+
+    // Debug Tools functionality
+    $('#debug-notion-sync').on('click', function() {
+        var $button = $(this);
+        var $results = $('#debug-results');
+        var $summary = $('#debug-summary');
+        var $logs = $('#debug-logs');
+        
+        $button.prop('disabled', true).text('🔄 Running Debug Test...');
+        $results.show();
+        $summary.html('<p>Running comprehensive debug test...</p>');
+        $logs.html('');
+        
+        $.ajax({
+            url: aagAdmin.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'aag_debug_notion_sync',
+                nonce: aagAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    var data = response.data;
+                    var summary = data.summary;
+                    
+                    var statusColor = summary.status === 'success' ? 'green' : 
+                                    summary.status === 'warning' ? 'orange' : 'red';
+                    
+                    $summary.html(
+                        '<div style="padding: 15px; border-left: 4px solid ' + statusColor + '; background: #f9f9f9;">' +
+                        '<h4 style="margin: 0 0 10px;">Debug Summary</h4>' +
+                        '<p><strong>Status:</strong> <span style="color: ' + statusColor + ';">' + summary.status.toUpperCase() + '</span></p>' +
+                        '<p><strong>Total Logs:</strong> ' + summary.total_logs + '</p>' +
+                        '<p><strong>Errors:</strong> ' + summary.errors + '</p>' +
+                        '<p><strong>Warnings:</strong> ' + summary.warnings + '</p>' +
+                        '</div>'
+                    );
+                    
+                    // Display logs
+                    var logsHtml = '<h4>Debug Logs</h4><div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f9f9f9;">';
+                    data.logs.forEach(function(log) {
+                        var levelColor = log.level === 'error' ? 'red' : 
+                                       log.level === 'warning' ? 'orange' : 
+                                       log.level === 'info' ? 'blue' : 'black';
+                        
+                        logsHtml += '<div style="margin-bottom: 5px;">' +
+                                   '<span style="color: #666; font-size: 12px;">' + log.timestamp + '</span> ' +
+                                   '<span style="color: ' + levelColor + '; font-weight: bold;">[' + log.level.toUpperCase() + ']</span> ' +
+                                   '<span>' + log.message + '</span>' +
+                                   '</div>';
+                    });
+                    logsHtml += '</div>';
+                    $logs.html(logsHtml);
+                    
+                    showToast('Debug test completed successfully', 'success');
+                } else {
+                    $summary.html('<div style="color: red;">Debug test failed: ' + (response.data ? response.data.message : 'Unknown error') + '</div>');
+                    showToast('Debug test failed', 'error');
+                }
+            },
+            error: function() {
+                $summary.html('<div style="color: red;">Debug test failed due to network error</div>');
+                showToast('Debug test failed due to network error', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text('🧪 Run Full Debug Test');
+            }
+        });
+    });
+
+    // Test block conversion
+    $('#test-block-conversion').on('click', function() {
+        var $button = $(this);
+        
+        $button.prop('disabled', true).text('🔄 Testing...');
+        
+        $.ajax({
+            url: aagAdmin.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'aag_test_notion_block_conversion',
+                nonce: aagAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    var blocks = response.data.blocks;
+                    var html = '<h4>Block Conversion Test Results</h4>';
+                    
+                    blocks.forEach(function(block, index) {
+                        html += '<div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9;">';
+                        html += '<h5>Block #' + (index + 1) + ' - Type: ' + block.original.type + '</h5>';
+                        html += '<p><strong>Converted HTML:</strong></p>';
+                        html += '<pre style="background: #fff; padding: 10px; border: 1px solid #ccc; overflow-x: auto;">' + 
+                               block.converted.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+                        html += '<p><strong>Rendered Preview:</strong></p>';
+                        html += '<div style="border: 1px solid #ccc; padding: 10px; background: #fff;">' + block.converted + '</div>';
+                        html += '</div>';
+                    });
+                    
+                    $('#debug-results').show();
+                    $('#debug-logs').html(html);
+                    showToast('Block conversion test completed', 'success');
+                } else {
+                    showToast('Block conversion test failed: ' + response.data, 'error');
+                }
+            },
+            error: function() {
+                showToast('Block conversion test failed due to network error', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text('🔄 Test Block Conversion');
+            }
+        });
+    });
+
+    // Clear debug log
+    $('#clear-debug-log').on('click', function() {
+        $('#debug-results').hide();
+        $('#debug-summary').html('');
+        $('#debug-logs').html('');
+        showToast('Debug log cleared', 'success');
+    });
 });

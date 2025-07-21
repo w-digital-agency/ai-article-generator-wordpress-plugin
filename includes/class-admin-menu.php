@@ -98,6 +98,7 @@ class AAG_Admin_Menu {
                     <a href="#image-settings" class="nav-tab">Image Settings</a>
                     <a href="#generate-content" class="nav-tab">Generate Content</a>
                     <a href="#markdown-upload" class="nav-tab">Markdown Upload</a>
+                    <a href="#debug-tools" class="nav-tab">Debug Tools</a>
                 </nav>
                 
                 <div class="aag-tab-content">
@@ -456,6 +457,78 @@ class AAG_Admin_Menu {
                                 </table>
                                 <?php submit_button('Upload Files', 'primary', 'upload_markdown'); ?>
                             </form>
+                        </div>
+                    </div>
+
+                    <!-- Debug Tools Tab -->
+                    <div id="debug-tools" class="aag-tab-pane">
+                        <div class="aag-section">
+                            <h3>🔧 Notion Sync Debug Tools</h3>
+                            <p>Use these tools to test and debug the Notion synchronization functionality.</p>
+                            
+                            <div class="aag-debug-actions">
+                                <button type="button" class="button button-primary" id="debug-notion-sync">
+                                    🧪 Run Full Debug Test
+                                </button>
+                                <button type="button" class="button" id="test-block-conversion">
+                                    🔄 Test Block Conversion
+                                </button>
+                                <button type="button" class="button" id="clear-debug-log">
+                                    🗑️ Clear Debug Log
+                                </button>
+                            </div>
+                            
+                            <div id="debug-results" style="margin-top: 20px; display: none;">
+                                <h4>Debug Results</h4>
+                                <div id="debug-summary"></div>
+                                <div id="debug-logs"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="aag-section">
+                            <h3>📊 Sync Statistics</h3>
+                            <?php if (isset($this->notion_sync)): ?>
+                            <?php 
+                            $sync_stats = $this->notion_sync->get_sync_stats();
+                            ?>
+                            <div class="aag-stat-grid">
+                                <div class="aag-stat-item">
+                                    <div class="aag-stat-number"><?php echo $sync_stats['total_synced']; ?></div>
+                                    <div class="aag-stat-label">Total Synced</div>
+                                </div>
+                                <div class="aag-stat-item">
+                                    <div class="aag-stat-number"><?php echo $sync_stats['pending_sync']; ?></div>
+                                    <div class="aag-stat-label">Pending Sync</div>
+                                </div>
+                                <div class="aag-stat-item">
+                                    <div class="aag-stat-number"><?php echo $sync_stats['sync_errors']; ?></div>
+                                    <div class="aag-stat-label">Sync Errors</div>
+                                </div>
+                                <div class="aag-stat-item">
+                                    <div class="aag-stat-number">
+                                        <?php echo $sync_stats['last_sync'] ? human_time_diff(strtotime($sync_stats['last_sync'])) . ' ago' : 'Never'; ?>
+                                    </div>
+                                    <div class="aag-stat-label">Last Sync</div>
+                                </div>
+                            </div>
+                            <?php else: ?>
+                            <p>Notion sync is not available.</p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="aag-section">
+                            <h3>🔍 Manual Testing</h3>
+                            <p>For advanced testing, you can use the standalone tester:</p>
+                            <p>
+                                <a href="<?php echo AAG_PLUGIN_URL; ?>notion-sync-tester.php?test=notion" 
+                                   target="_blank" class="button">
+                                    🚀 Open Standalone Tester
+                                </a>
+                            </p>
+                            <p class="description">
+                                The standalone tester allows you to test Notion API connectivity and block conversion 
+                                without affecting your WordPress installation.
+                            </p>
                         </div>
                     </div>
                 </div>
