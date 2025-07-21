@@ -266,10 +266,16 @@ class AAG_Admin_Menu {
                                             <div class="aag-api-key-input">
                                                 <input type="password" name="aag_notion_token" 
                                                     value="<?php echo esc_attr($this->get_decrypted_key('aag_notion_token')); ?>" 
-                                                    class="regular-text" placeholder="secret_..." />
+                                                    class="regular-text" placeholder="secret_..." 
+                                                    data-validate="notion" />
                                                 <button type="button" class="button toggle-password">Show</button>
                                                 <button type="button" class="button" id="test-notion-connection">Test Connection</button>
                                             </div>
+                                            <p class="description">
+                                                <strong>Token Format:</strong> Must start with "secret_" followed by 43 characters.<br>
+                                                <strong>Example:</strong> secret_1234567890abcdef1234567890abcdef12345678<br>
+                                                Get your token from <a href="https://www.notion.so/my-integrations" target="_blank">Notion Integrations</a>
+                                            </p>
                                             <div class="aag-key-status"></div>
                                         </td>
                                     </tr>

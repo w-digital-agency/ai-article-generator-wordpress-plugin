@@ -29,8 +29,30 @@ jQuery(document).ready(function($) {
     $('#test-notion-connection').on('click', function() {
         var $button = $(this);
         var $status = $('.aag-key-status');
+        var $tokenInput = $('input[name="aag_notion_token"]');
+        var token = $tokenInput.val().trim();
+        
+        // Basic client-side validation
+        if (!token) {
+            $status.removeClass('valid').addClass('invalid')
+                .html('<span class="dashicons dashicons-warning"></span> Please enter a Notion token');
+            return;
+        }
+        
+        if (!token.startsWith('secret_')) {
+            $status.removeClass('valid').addClass('invalid')
+                .html('<span class="dashicons dashicons-warning"></span> Token must start with "secret_"');
+            return;
+        }
+        
+        if (token.length !== 50) {
+            $status.removeClass('valid').addClass('invalid')
+                .html('<span class="dashicons dashicons-warning"></span> Token should be 50 characters long (secret_ + 43 chars)');
+            return;
+        }
         
         $button.prop('disabled', true).text('Testing...');
+        $status.removeClass('valid invalid').html('<span class="dashicons dashicons-update"></span> Testing connection...');
         
         $.ajax({
             url: aagAdmin.ajaxurl,
@@ -42,15 +64,15 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     $status.removeClass('invalid').addClass('valid')
-                        .html('<span class="dashicons dashicons-yes"></span> ' + response.data);
+                        .html('<span class="dashicons dashicons-yes"></span> Connection successful! Token is valid.');
                 } else {
                     $status.removeClass('valid').addClass('invalid')
-                        .html('<span class="dashicons dashicons-warning"></span> ' + response.data);
+                        .html('<span class="dashicons dashicons-warning"></span> Connection failed: ' + response.data);
                 }
             },
             error: function() {
                 $status.removeClass('valid').addClass('invalid')
-                    .html('<span class="dashicons dashicons-warning"></span> Connection failed');
+                    .html('<span class="dashicons dashicons-warning"></span> Network error - please try again');
             },
             complete: function() {
                 $button.prop('disabled', false).text('Test Connection');
@@ -137,45 +159,48 @@ jQuery(document).ready(function($) {
     });
 
     // API Key validation
-    $('.aag-api-key-input input').on('blur', function() {
+    $('.aag-api-key-input input').on('input blur', function() {
         var $input = $(this);
         var $status = $input.siblings('.aag-key-status');
         var key = $input.val().trim();
+        var validateType = $input.data('validate');
 
         if (!key) {
             $status.removeClass('valid invalid').html('');
             return;
         }
 
-        // Basic format validation
-        var isValidFormat = /^[a-zA-Z0-9_-]{20,}$/.test(key);
+        var isValidFormat = false;
+        var errorMessage = '';
+        
+        // Notion token validation
+        if (validateType === 'notion') {
+            if (!key.startsWith('secret_')) {
+                errorMessage = 'Token must start with "secret_"';
+            } else if (key.length !== 50) {
+                errorMessage = 'Token should be 50 characters long';
+            } else if (!/^secret_[a-zA-Z0-9]{43}$/.test(key)) {
+                errorMessage = 'Invalid token format';
+            } else {
+                isValidFormat = true;
+            }
+        } else {
+            // Other API keys validation
+            isValidFormat = /^[a-zA-Z0-9_-]{20,}$/.test(key);
+            if (!isValidFormat) {
+                errorMessage = 'Invalid key format';
+            }
+        }
         
         if (!isValidFormat) {
             $status.removeClass('valid').addClass('invalid')
-                .html('<span class="dashicons dashicons-warning"></span> Invalid key format');
+                .html('<span class="dashicons dashicons-warning"></span> ' + errorMessage);
             return;
         }
 
-        // Server-side validation
-        $.ajax({
-            url: aagAdmin.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'aag_validate_api_key',
-                nonce: aagAdmin.nonce,
-                key: key,
-                provider: $input.attr('name')
-            },
-            success: function(response) {
-                if (response.success) {
-                    $status.removeClass('invalid').addClass('valid')
-                        .html('<span class="dashicons dashicons-yes"></span> Valid key');
-                } else {
-                    $status.removeClass('valid').addClass('invalid')
-                        .html('<span class="dashicons dashicons-warning"></span> ' + response.data);
-                }
-            }
-        });
+        // Show valid format for client-side validation
+        $status.removeClass('invalid').addClass('valid')
+            .html('<span class="dashicons dashicons-yes"></span> Valid format - use "Test Connection" to verify');
     });
 
     // Toast notifications

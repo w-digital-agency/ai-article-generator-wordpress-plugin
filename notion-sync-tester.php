@@ -84,6 +84,20 @@ class NotionSyncTester {
             return false;
         }
         
+        // Validate token format
+        echo "<h3>Token Format Validation</h3>\n";
+        echo "<p><strong>Token Length:</strong> " . strlen($this->notion_token) . " characters</p>\n";
+        echo "<p><strong>Token Prefix:</strong> " . substr($this->notion_token, 0, 7) . "...</p>\n";
+        
+        if (!preg_match('/^secret_[a-zA-Z0-9]{43}$/', $this->notion_token)) {
+            echo "<p style='color: red;'>❌ Invalid token format!</p>\n";
+            echo "<p><strong>Expected format:</strong> secret_[43 alphanumeric characters]</p>\n";
+            echo "<p><strong>Your token:</strong> " . strlen($this->notion_token) . " characters, starts with '" . substr($this->notion_token, 0, 10) . "'</p>\n";
+            return false;
+        } else {
+            echo "<p style='color: green;'>✅ Token format is correct</p>\n";
+        }
+        
         $response = wp_remote_get('https://api.notion.com/v1/users/me', [
             'headers' => [
                 'Authorization: Bearer ' . $this->notion_token,

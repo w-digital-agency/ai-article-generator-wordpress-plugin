@@ -176,6 +176,21 @@ class AAG_Notion_Sync_Debugger {
     private function test_notion_connection() {
         $notion_token = $this->get_notion_token();
         
+        // Validate token format first
+        if (empty($notion_token)) {
+            $this->log('ERROR: No Notion token found in settings', 'error');
+            return new WP_Error('missing_token', 'No Notion token configured');
+        }
+        
+        if (!preg_match('/^secret_[a-zA-Z0-9]{43}$/', $notion_token)) {
+            $this->log('ERROR: Invalid token format. Expected: secret_[43 characters]', 'error');
+            $this->log('Token length: ' . strlen($notion_token), 'error');
+            $this->log('Token starts with: ' . substr($notion_token, 0, 7), 'error');
+            return new WP_Error('invalid_token_format', 'Invalid token format');
+        }
+        
+        $this->log('Token format validation passed');
+        
         $response = wp_remote_get('https://api.notion.com/v1/users/me', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $notion_token,
@@ -186,18 +201,40 @@ class AAG_Notion_Sync_Debugger {
         ]);
 
         if (is_wp_error($response)) {
+            $this->log('ERROR: WordPress HTTP error - ' . $response->get_error_message(), 'error');
             return $response;
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        $this->log("API Response Code: {$response_code}");
+        $this->log("API Response Body: " . substr($response_body, 0, 200) . '...');
+        
         if ($response_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            $error_data = json_decode($body, true);
-            return new WP_Error('notion_api_error', 
-                isset($error_data['message']) ? $error_data['message'] : 'Failed to connect to Notion'
+            $error_data = json_decode($response_body, true);
+            
+            $error_message = 'Failed to connect to Notion';
+            if (isset($error_data['message'])) {
+                $error_message = $error_data['message'];
+                $this->log('ERROR: Notion API error - ' . $error_message, 'error');
+            } elseif ($response_code === 401) {
+                $error_message = 'Unauthorized - Invalid token or insufficient permissions';
+                $this->log('ERROR: 401 Unauthorized - Check your token', 'error');
+            } elseif ($response_code === 403) {
+                $error_message = 'Forbidden - Integration may not have required permissions';
+                $this->log('ERROR: 403 Forbidden - Check integration permissions', 'error');
+            }
+            
+            return new WP_Error('notion_api_error', $error_message
             );
         }
 
+        $user_data = json_decode($response_body, true);
+        if (isset($user_data['name'])) {
+            $this->log('✅ Connected successfully as: ' . $user_data['name']);
+        }
+        
         return true;
     }
     

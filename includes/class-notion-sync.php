@@ -71,6 +71,11 @@ class AAG_Notion_Sync {
             return new WP_Error('missing_token', 'Notion integration token is required');
         }
 
+        // Log the token format for debugging (without exposing the actual token)
+        $token_length = strlen($this->notion_token);
+        $token_prefix = substr($this->notion_token, 0, 7);
+        error_log("AAG Notion Debug: Token length: {$token_length}, starts with: {$token_prefix}");
+
         $response = wp_remote_get('https://api.notion.com/v1/users/me', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->notion_token,
@@ -81,15 +86,31 @@ class AAG_Notion_Sync {
         ]);
 
         if (is_wp_error($response)) {
+            error_log('AAG Notion Debug: WP Error - ' . $response->get_error_message());
             return $response;
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        error_log("AAG Notion Debug: Response code: {$response_code}");
+        error_log("AAG Notion Debug: Response body: " . substr($response_body, 0, 500));
+        
         if ($response_code !== 200) {
-            $body = wp_remote_retrieve_body($response);
-            $error_data = json_decode($body, true);
-            return new WP_Error('notion_api_error', 
-                isset($error_data['message']) ? $error_data['message'] : 'Failed to connect to Notion'
+            $error_data = json_decode($response_body, true);
+            
+            // Provide more specific error messages
+            $error_message = 'Failed to connect to Notion';
+            if (isset($error_data['message'])) {
+                $error_message = $error_data['message'];
+            } elseif ($response_code === 401) {
+                $error_message = 'Invalid Notion token. Please check your integration token and make sure it starts with "secret_"';
+            } elseif ($response_code === 403) {
+                $error_message = 'Access denied. Make sure your integration has the correct permissions.';
+            } elseif ($response_code === 429) {
+                $error_message = 'Rate limit exceeded. Please wait a moment and try again.';
+            }
+            
+            return new WP_Error('notion_api_error', $error_message
             );
         }
 
